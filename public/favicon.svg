@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Shopping bag body -->
+  <rect x="25" y="30" width="50" height="55" rx="5" fill="url(#grad)" />
+  <!-- Shopping bag opening -->
+  <path d="M 30 30 L 30 25 Q 30 15 40 15 L 60 15 Q 70 15 70 25 L 70 30" 
+        stroke="url(#grad)" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- Shopping bag handle -->
+  <path d="M 35 20 Q 30 15 25 20" 
+        stroke="url(#grad)" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- Sparkle effects for premium feel -->
+  <circle cx="75" cy="25" r="3" fill="#fbbf24" />
+  <circle cx="20" cy="60" r="2.5" fill="#fbbf24" />
+  <circle cx="80" cy="70" r="2" fill="#fbbf24" />
+</svg>

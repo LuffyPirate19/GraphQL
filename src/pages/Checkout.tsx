@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@/hooks/use-graphql";
 import { CreditCard, Truck, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,25 +8,101 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/use-cart";
+import { CREATE_ORDER } from "@/lib/graphql/mutations";
+import { GET_ME } from "@/lib/graphql/queries";
 import { toast } from "sonner";
 
 const Checkout = () => {
   const { items, total, clearCart } = useCart();
   const navigate = useNavigate();
+  const token = localStorage.getItem("authToken");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Check if user is authenticated
+  const { data: meData } = useQuery(GET_ME, {
+    skip: !token,
+  });
+  
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!token) {
+      toast.error("Please login to checkout");
+      navigate("/");
+    }
+  }, [token, navigate]);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    cardName: "",
+    cardNumber: "",
+    expiry: "",
+    cvc: "",
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    
-    // Simulate order processing
-    setTimeout(() => {
+  const { mutate: createOrder } = useMutation(CREATE_ORDER, {
+    onCompleted: () => {
       clearCart();
       toast.success("Order placed successfully!");
       navigate("/");
-    }, 2000);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to place order");
+      setIsProcessing(false);
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const orderItems = items.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        name: item.name,
+      }));
+
+      await createOrder({
+        input: {
+          items: orderItems,
+          shippingAddress: {
+            street: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zip,
+            country: "India",
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+    }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  // Show loading or redirect if not authenticated
+  if (!token) {
+    return null; // Will redirect in useEffect
+  }
+  
   if (items.length === 0) {
     return (
       <div className="container flex min-h-screen items-center justify-center py-16">
@@ -65,33 +142,89 @@ const Checkout = () => {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" required />
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        type="text"
+                        autoComplete="given-name"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" required />
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        type="text"
+                        autoComplete="family-name"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" required />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="address">Address</Label>
-                    <Input id="address" required />
+                    <Input
+                      id="address"
+                      name="address"
+                      type="text"
+                      autoComplete="street-address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="city">City</Label>
-                      <Input id="city" required />
+                      <Input
+                        id="city"
+                        name="city"
+                        type="text"
+                        autoComplete="address-level2"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="state">State</Label>
-                      <Input id="state" required />
+                      <Input
+                        id="state"
+                        name="state"
+                        type="text"
+                        autoComplete="address-level1"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="zip">ZIP Code</Label>
-                      <Input id="zip" required />
+                      <Input
+                        id="zip"
+                        name="zip"
+                        type="text"
+                        autoComplete="postal-code"
+                        value={formData.zip}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -108,24 +241,55 @@ const Checkout = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="cardName">Name on Card</Label>
-                    <Input id="cardName" required />
+                    <Input
+                      id="cardName"
+                      name="cardName"
+                      type="text"
+                      autoComplete="cc-name"
+                      value={formData.cardName}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="cardNumber">Card Number</Label>
                     <Input
                       id="cardNumber"
+                      name="cardNumber"
+                      type="text"
+                      autoComplete="cc-number"
                       placeholder="1234 5678 9012 3456"
+                      value={formData.cardNumber}
+                      onChange={handleInputChange}
                       required
                     />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="expiry">Expiry Date</Label>
-                      <Input id="expiry" placeholder="MM/YY" required />
+                      <Input
+                        id="expiry"
+                        name="expiry"
+                        type="text"
+                        autoComplete="cc-exp"
+                        placeholder="MM/YY"
+                        value={formData.expiry}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="cvc">CVC</Label>
-                      <Input id="cvc" placeholder="123" required />
+                      <Input
+                        id="cvc"
+                        name="cvc"
+                        type="text"
+                        autoComplete="cc-csc"
+                        placeholder="123"
+                        value={formData.cvc}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -155,7 +319,7 @@ const Checkout = () => {
                             Qty: {item.quantity}
                           </p>
                           <p className="text-sm font-semibold">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            ₹{(item.price * item.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -167,7 +331,7 @@ const Checkout = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
-                      <span className="font-medium">${total.toFixed(2)}</span>
+                      <span className="font-medium">₹{total.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping</span>
@@ -176,14 +340,14 @@ const Checkout = () => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tax</span>
                       <span className="font-medium">
-                        ${(total * 0.1).toFixed(2)}
+                        ₹{(total * 0.1).toFixed(2)}
                       </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-base">
                       <span className="font-semibold">Total</span>
                       <span className="text-lg font-bold">
-                        ${(total * 1.1).toFixed(2)}
+                        ₹{(total * 1.1).toFixed(2)}
                       </span>
                     </div>
                   </div>

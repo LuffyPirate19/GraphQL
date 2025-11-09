@@ -1,51 +1,35 @@
-import { ArrowRight, Package, Truck, Shield } from "lucide-react";
+import { useQuery } from "@/hooks/use-graphql";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductCard from "@/components/ProductCard";
 import { useNavigate } from "react-router-dom";
+import { GET_PRODUCTS } from "@/lib/graphql/queries";
+import { Package, Truck, Shield } from "lucide-react";
 
 const Home = () => {
   const navigate = useNavigate();
 
-  // Mock featured products
-  const featuredProducts = [
-    {
-      id: "1",
-      name: "Premium Wireless Headphones",
-      description: "High-quality sound with active noise cancellation",
-      price: 299.99,
-      image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop",
-      category: "Electronics",
-      rating: 4.8
+  // Fetch featured products (first 4 products sorted by rating)
+  const { data, loading } = useQuery(GET_PRODUCTS, {
+    variables: {
+      limit: 4,
+      offset: 0,
+      sort: { sortBy: "rating_desc" },
     },
-    {
-      id: "2",
-      name: "Smart Watch Pro",
-      description: "Track your fitness and stay connected",
-      price: 399.99,
-      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop",
-      category: "Wearables",
-      rating: 4.6
-    },
-    {
-      id: "3",
-      name: "Designer Backpack",
-      description: "Stylish and functional for everyday use",
-      price: 89.99,
-      image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=500&fit=crop",
-      category: "Fashion",
-      rating: 4.7
-    },
-    {
-      id: "4",
-      name: "Minimalist Desk Lamp",
-      description: "Modern lighting for your workspace",
-      price: 79.99,
-      image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=500&h=500&fit=crop",
-      category: "Home",
-      rating: 4.5
-    }
-  ];
+  });
+
+  const featuredProducts =
+    data?.products?.edges?.map((edge: any) => ({
+      id: edge.node.id,
+      name: edge.node.name,
+      description: edge.node.description,
+      price: parseFloat(edge.node.price),
+      image: edge.node.image || edge.node.images?.[0] || "/placeholder.svg",
+      category: edge.node.category?.name,
+      rating: edge.node.rating || 0,
+      inStock: edge.node.inStock,
+    })) || [];
 
   return (
     <div className="min-h-screen">
@@ -60,8 +44,8 @@ const Home = () => {
               Shop the latest trends with unbeatable prices. Fast shipping, secure checkout, and exceptional customer service.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="secondary"
                 onClick={() => navigate("/products")}
                 className="gap-2"
@@ -69,12 +53,13 @@ const Home = () => {
                 Shop Now
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
                 className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
+                onClick={() => navigate("/products")}
               >
-                Learn More
+                Browse Products
               </Button>
             </div>
           </div>
@@ -98,7 +83,7 @@ const Home = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="border-none shadow-none bg-transparent">
               <CardContent className="flex flex-col items-center gap-4 p-6 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -107,12 +92,12 @@ const Home = () => {
                 <div>
                   <h3 className="mb-2 text-lg font-semibold">Fast Shipping</h3>
                   <p className="text-sm text-muted-foreground">
-                    Free delivery on orders over $50
+                    Free delivery on orders over ₹500
                   </p>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="border-none shadow-none bg-transparent">
               <CardContent className="flex flex-col items-center gap-4 p-6 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -137,22 +122,34 @@ const Home = () => {
             <h2 className="mb-4 text-3xl font-bold">Featured Products</h2>
             <p className="text-muted-foreground">Check out our most popular items</p>
           </div>
-          
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} {...product} />
-            ))}
-          </div>
-          
-          <div className="mt-12 text-center">
-            <Button 
-              size="lg" 
-              variant="outline"
-              onClick={() => navigate("/products")}
-            >
-              View All Products
-            </Button>
-          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading featured products...</p>
+            </div>
+          ) : featuredProducts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No featured products available</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {featuredProducts.map((product) => (
+                  <ProductCard key={product.id} {...product} />
+                ))}
+              </div>
+
+              <div className="mt-12 text-center">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate("/products")}
+                >
+                  View All Products
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </div>

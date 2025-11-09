@@ -1,47 +1,125 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation } from "@/hooks/use-graphql";
 import { ShoppingCart, Star, Minus, Plus, Heart, Share2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/hooks/use-cart";
+import { GET_PRODUCT } from "@/lib/graphql/queries";
+import { ADD_TO_CART } from "@/lib/graphql/mutations";
 import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  
+  // Check if product is in cart
+  const cartItem = items.find(item => item.id === id);
+  const isInCart = cartItem !== undefined;
+  const cartQuantity = cartItem?.quantity || 0;
 
-  // Mock product data
-  const product = {
-    id: "1",
-    name: "Premium Wireless Headphones",
-    description: "Experience crystal-clear audio with our premium wireless headphones featuring active noise cancellation, 30-hour battery life, and premium comfort padding.",
-    price: 299.99,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop",
-    images: [
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop",
-      "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&h=800&fit=crop",
-      "https://images.unsplash.com/photo-1545127398-14699f92334b?w=800&h=800&fit=crop"
-    ],
-    category: "Electronics",
-    inStock: true,
-    rating: 4.8,
-    reviews: 127
+  const { data, loading, error } = useQuery(GET_PRODUCT, {
+    variables: { id },
+    skip: !id,
+  });
+
+  const { mutate: addToCartMutation, loading: addingToCart } = useMutation(ADD_TO_CART, {
+    onCompleted: () => {
+      toast.success("Added to cart");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to add to cart");
+    },
+  });
+
+  const product = data?.product;
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+
+    try {
+      // Add to local cart state
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        image: product.image || product.images?.[0] || "/placeholder.svg",
+        quantity,
+      });
+
+      // Also add to server cart if authenticated
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        try {
+          await addToCartMutation({
+            productId: product.id,
+            quantity,
+          });
+        } catch (error) {
+          // Error already handled by onError
+        }
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    }
   };
 
-  const handleAddToCart = () => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity
-    });
-    toast.success("Added to cart");
+  const handleShare = async () => {
+    if (navigator.share && product) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: product.description,
+          url: window.location.href,
+        });
+        toast.success("Shared successfully");
+      } catch (error) {
+        // User cancelled or error
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading product...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="container py-8">
+        <div className="text-center">
+          <p className="text-destructive">
+            {error ? `Error: ${error.message}` : "Product not found"}
+          </p>
+          <Button onClick={() => navigate("/products")} className="mt-4">
+            Back to Products
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const images = product.images && product.images.length > 0 
+    ? product.images 
+    : product.image 
+    ? [product.image] 
+    : ["/placeholder.svg"];
+
+  const reviews = product.reviews?.edges?.map((edge: any) => edge.node) || [];
 
   return (
     <div className="min-h-screen">
@@ -60,39 +138,46 @@ const ProductDetail = () => {
           <div className="space-y-4">
             <div className="aspect-square overflow-hidden rounded-lg border border-border bg-muted">
               <img
-                src={product.image}
+                src={images[selectedImageIndex]}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              {product.images.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="aspect-square cursor-pointer overflow-hidden rounded-lg border border-border bg-muted transition-all hover:border-primary"
-                >
-                  <img
-                    src={img}
-                    alt={`${product.name} ${idx + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
+            {images.length > 1 && (
+              <div className="grid grid-cols-3 gap-4">
+                {images.map((img: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`aspect-square cursor-pointer overflow-hidden rounded-lg border transition-all ${
+                      selectedImageIndex === idx
+                        ? "border-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => setSelectedImageIndex(idx)}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.name} ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
           <div className="space-y-6">
             <div>
-              <Badge className="mb-3">{product.category}</Badge>
+              <Badge className="mb-3">{product.category?.name || "Uncategorized"}</Badge>
               <h1 className="mb-2 text-3xl font-bold">{product.name}</h1>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1">
                   <Star className="h-5 w-5 fill-primary text-primary" />
-                  <span className="font-semibold">{product.rating}</span>
+                  <span className="font-semibold">{product.rating?.toFixed(1) || "0.0"}</span>
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {product.reviews} reviews
+                  {product.reviewCount || 0} reviews
                 </span>
               </div>
             </div>
@@ -100,17 +185,17 @@ const ProductDetail = () => {
             <Separator />
 
             <div className="space-y-2">
-              <p className="text-4xl font-bold">${product.price.toFixed(2)}</p>
+              <p className="text-4xl font-bold">₹{parseFloat(product.price).toFixed(2)}</p>
               {product.inStock ? (
                 <Badge variant="outline" className="border-primary text-primary">
-                  In Stock
+                  In Stock ({product.stockQuantity || 0} available)
                 </Badge>
               ) : (
                 <Badge variant="destructive">Out of Stock</Badge>
               )}
             </div>
 
-            <p className="text-muted-foreground">{product.description}</p>
+            <p className="text-muted-foreground">{product.description || "No description available."}</p>
 
             <Separator />
 
@@ -129,7 +214,8 @@ const ProductDetail = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity(Math.min(product.stockQuantity || 999, quantity + 1))}
+                    disabled={!product.inStock}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -139,17 +225,27 @@ const ProductDetail = () => {
               <div className="flex gap-3">
                 <Button
                   size="lg"
-                  className="flex-1 gap-2"
+                  className="flex-1 gap-2 relative"
                   onClick={handleAddToCart}
-                  disabled={!product.inStock}
+                  disabled={!product.inStock || addingToCart}
+                  variant={isInCart ? "default" : "default"}
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  Add to Cart
+                  {addingToCart 
+                    ? "Adding..." 
+                    : isInCart 
+                      ? `In Cart (${cartQuantity})` 
+                      : "Add to Cart"}
+                  {isInCart && !addingToCart && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary-foreground text-xs font-bold text-primary shadow-md">
+                      ✓
+                    </span>
+                  )}
                 </Button>
-                <Button variant="outline" size="lg">
+                <Button variant="outline" size="lg" onClick={() => toast.info("Wishlist feature coming soon")}>
                   <Heart className="h-5 w-5" />
                 </Button>
-                <Button variant="outline" size="lg">
+                <Button variant="outline" size="lg" onClick={handleShare}>
                   <Share2 className="h-5 w-5" />
                 </Button>
               </div>
@@ -160,7 +256,7 @@ const ProductDetail = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Free Shipping</span>
-                <span className="font-medium">On orders over $50</span>
+                <span className="font-medium">On orders over ₹500</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delivery</span>
@@ -179,29 +275,50 @@ const ProductDetail = () => {
           <Tabs defaultValue="details" className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
               <TabsTrigger value="shipping">Shipping</TabsTrigger>
             </TabsList>
             <TabsContent value="details" className="mt-6 space-y-4">
               <h3 className="text-lg font-semibold">Product Details</h3>
               <p className="text-muted-foreground">
-                {product.description}
+                {product.description || "No additional details available."}
               </p>
-              <ul className="list-inside list-disc space-y-2 text-muted-foreground">
-                <li>Premium build quality</li>
-                <li>Long-lasting battery life</li>
-                <li>Comfortable for extended wear</li>
-                <li>Advanced features and connectivity</li>
-              </ul>
             </TabsContent>
             <TabsContent value="reviews" className="mt-6">
               <h3 className="text-lg font-semibold mb-4">Customer Reviews</h3>
-              <p className="text-muted-foreground">Reviews content coming soon...</p>
+              {reviews.length === 0 ? (
+                <p className="text-muted-foreground">No reviews yet. Be the first to review this product!</p>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review: any) => (
+                    <div key={review.id} className="border-b border-border pb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`h-4 w-4 ${
+                                i < review.rating
+                                  ? "fill-primary text-primary"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-medium">{review.user?.name || "Anonymous"}</span>
+                      </div>
+                      {review.comment && (
+                        <p className="text-sm text-muted-foreground">{review.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="shipping" className="mt-6">
               <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
               <p className="text-muted-foreground">
-                Free shipping on orders over $50. Standard delivery takes 2-3 business days.
+                Free shipping on orders over ₹500. Standard delivery takes 2-3 business days.
                 Express shipping available at checkout.
               </p>
             </TabsContent>

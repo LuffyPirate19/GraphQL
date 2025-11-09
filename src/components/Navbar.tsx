@@ -1,12 +1,39 @@
-import { ShoppingCart, Menu, Search, User } from "lucide-react";
+import { useQuery } from "@/hooks/use-graphql";
+import { ShoppingCart, Menu, Search, User, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCart } from "@/hooks/use-cart";
+import AuthDialog from "@/components/AuthDialog";
+import { GET_ME } from "@/lib/graphql/queries";
+import { graphqlClient } from "@/lib/graphql-client";
+import { toast } from "sonner";
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const { itemCount, toggleCart } = useCart();
+  const token = localStorage.getItem("authToken");
+  
+  const { data: meData } = useQuery(GET_ME, {
+    skip: !token,
+  });
+
+  const user = meData?.me;
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    graphqlClient.clearCache();
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -28,30 +55,72 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex flex-1 max-w-md mx-6">
-          <div className="relative w-full">
+          <form
+            className="relative w-full"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const search = formData.get("search") as string;
+              if (search?.trim()) {
+                navigate(`/products?search=${encodeURIComponent(search.trim())}`);
+              }
+            }}
+          >
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="navbarSearch"
+              name="search"
               placeholder="Search products..."
               className="pl-10"
             />
-          </div>
+          </form>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hidden md:flex">
-            <User className="h-5 w-5" />
-          </Button>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hidden md:flex">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem disabled>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{user.name}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
+                  </div>
+                </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")}>
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <AuthDialog>
+              <Button variant="ghost" size="icon" className="hidden md:flex">
+                <User className="h-5 w-5" />
+              </Button>
+            </AuthDialog>
+          )}
           
           <Button 
             variant="ghost" 
             size="icon" 
             className="relative"
             onClick={toggleCart}
+            aria-label={`Shopping cart with ${itemCount} items`}
           >
             <ShoppingCart className="h-5 w-5" />
             {itemCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                {itemCount}
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 min-w-[20px] items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-lg ring-2 ring-background">
+                {itemCount > 99 ? '99+' : itemCount}
               </span>
             )}
           </Button>
@@ -70,6 +139,19 @@ const Navbar = () => {
                 <NavLink to="/admin">
                   <Button variant="ghost" className="w-full justify-start">Admin</Button>
                 </NavLink>
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start relative"
+                  onClick={toggleCart}
+                >
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  Cart
+                  {itemCount > 0 && (
+                    <span className="ml-auto flex h-6 w-6 min-w-[24px] items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                      {itemCount > 99 ? '99+' : itemCount}
+                    </span>
+                  )}
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
