@@ -1,4 +1,4 @@
-import { getCart, addToCart, removeFromCart } from '../../services/cartService.js';
+import { getCart, addToCart, removeFromCart, updateCartItem } from '../../services/cartService.js';
 import { AuthenticationError } from '../../utils/errors.js';
 
 export const cartResolvers = {
@@ -52,7 +52,19 @@ export const cartResolvers = {
       const cart = await removeFromCart(user, productId);
       return cart;
     },
+    
+    updateCartItem: async (parent, { productId, quantity }, { user }) => {
+      if (!user) {
+        throw new AuthenticationError('Authentication required');
+      }
+      if (quantity <= 0) {
+        throw new Error('Quantity must be greater than 0');
+      }
+      const cart = await updateCartItem(user, productId, quantity);
+      return cart;
+    },
   },
 };
+
 
 

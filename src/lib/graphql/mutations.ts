@@ -88,6 +88,23 @@ export const REMOVE_FROM_CART = `
   }
 `;
 
+export const UPDATE_CART_ITEM = `
+  mutation UpdateCartItem($productId: ID!, $quantity: Int!) {
+    updateCartItem(productId: $productId, quantity: $quantity) {
+      id
+      items {
+        id
+        product {
+          id
+          name
+          price
+        }
+        quantity
+      }
+    }
+  }
+`;
+
 export const LOGIN = `
   mutation Login($input: LoginInput!) {
     login(input: $input) {

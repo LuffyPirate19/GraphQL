@@ -17,8 +17,20 @@ const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 
-  // CORS
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:8080',
+  // CORS - support multiple origins
+  // Default development origins
+  corsOrigin: (() => {
+    const defaultOrigins = ['http://localhost:8080', 'http://localhost:8081', 'http://localhost:3000', 'http://localhost:5173'];
+    
+    if (process.env.CORS_ORIGIN) {
+      // If CORS_ORIGIN is set, merge with defaults to ensure common ports are always allowed
+      const envOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+      // Combine and remove duplicates
+      return [...new Set([...defaultOrigins, ...envOrigins])];
+    }
+    
+    return defaultOrigins;
+  })(),
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

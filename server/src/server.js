@@ -20,15 +20,49 @@ import logger from './utils/logger.js';
 // Create Express app
 const app = express();
 
-// Security middleware
-app.use(helmet());
-app.use(compression());
+// CORS - MUST be before other middleware to handle preflight requests
+// Normalize corsOrigin to always be an array
+const allowedOrigins = Array.isArray(config.corsOrigin) 
+  ? config.corsOrigin 
+  : [config.corsOrigin];
 
-// CORS
+// Log allowed origins on startup
+logger.info(`CORS: Allowed origins: ${allowedOrigins.join(', ')}`);
+
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in the allowed list
+    if (allowedOrigins.includes(origin)) {
+      if (config.nodeEnv === 'development') {
+        logger.debug(`CORS: Allowing origin ${origin}`);
+      }
+      callback(null, true);
+    } else {
+      // Log rejected origin for debugging
+      logger.warn(`CORS: Origin ${origin} not allowed. Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(null, false);
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'Accept'],
+  exposedHeaders: ['X-Request-ID'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
+
+// Security middleware - configure helmet to allow CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false, // Disable CSP to avoid conflicts with CORS
+}));
+app.use(compression());
 
 // Request ID
 app.use(requestId);
@@ -55,6 +89,11 @@ if (config.nodeEnv === 'production') {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Explicitly handle OPTIONS preflight requests for GraphQL
+app.options('/graphql', (req, res) => {
+  res.sendStatus(204);
 });
 
 // Body parser
@@ -164,6 +203,7 @@ const startServer = async () => {
     app.listen(config.port, () => {
       logger.info(`Server running on http://localhost:${config.port}`);
       logger.info(`GraphQL endpoint: http://localhost:${config.port}/graphql`);
+      logger.info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
       
       if (config.nodeEnv !== 'production') {
         logger.info(`GraphiQL: http://localhost:${config.port}/graphql`);

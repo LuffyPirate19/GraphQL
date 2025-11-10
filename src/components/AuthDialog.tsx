@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@/hooks/use-graphql";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ interface AuthDialogProps {
 }
 
 const AuthDialog = ({ children }: AuthDialogProps) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
@@ -26,8 +28,17 @@ const AuthDialog = ({ children }: AuthDialogProps) => {
   const { mutate: login, loading: loginLoading } = useMutation(LOGIN, {
     onCompleted: (data: any) => {
       localStorage.setItem("authToken", data.login.token);
+      graphqlClient.clearCache();
       graphqlClient.refetchQueries([GET_ME]);
-      toast.success("Logged in successfully");
+      
+      // Check if user is admin and redirect
+      if (data.login.user?.role === "admin") {
+        navigate("/admin");
+        toast.success("Logged in as admin");
+      } else {
+        toast.success("Logged in successfully");
+      }
+      
       setIsOpen(false);
       setLoginForm({ email: "", password: "" });
     },

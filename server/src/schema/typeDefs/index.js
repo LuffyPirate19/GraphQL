@@ -51,6 +51,7 @@ const rootTypeDefs = gql`
     # Cart
     addToCart(productId: ID!, quantity: Int!): Cart!
     removeFromCart(productId: ID!): Cart!
+    updateCartItem(productId: ID!, quantity: Int!): Cart!
 
     # Orders
     createOrder(input: CreateOrderInput!): Order!
@@ -82,5 +83,6 @@ export const typeDefs = [
   cartTypeDefs,
   reviewTypeDefs,
 ];
+
 
 

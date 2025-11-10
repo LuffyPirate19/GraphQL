@@ -138,10 +138,11 @@ class GraphQLClient {
 
   refetchQueries(queries?: string[]) {
     if (queries) {
-      // Clear specific queries
+      // Clear specific queries by checking if the cache key contains the query string
       for (const [key] of this.cache.entries()) {
-        const parsed = JSON.parse(key);
-        if (queries.some(q => parsed.query.includes(q))) {
+        // Cache key format is: "query:variables"
+        // Check if any of the provided queries match
+        if (queries.some(q => key.includes(q))) {
           this.cache.delete(key);
         }
       }

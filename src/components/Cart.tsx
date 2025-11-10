@@ -4,10 +4,38 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/use-cart";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@/hooks/use-graphql";
+import { UPDATE_CART_ITEM } from "@/lib/graphql/mutations";
+import { graphqlClient } from "@/lib/graphql-client";
+import { toast } from "sonner";
 
 const Cart = () => {
   const { items, isOpen, toggleCart, removeItem, updateQuantity, total } = useCart();
   const navigate = useNavigate();
+  const token = localStorage.getItem("authToken");
+
+  const { mutate: updateCartItem } = useMutation(UPDATE_CART_ITEM, {
+    onCompleted: () => {
+      // Refetch cart to sync with database
+      graphqlClient.clearCache();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update cart");
+    },
+  });
+
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    // Update local state immediately for better UX
+    updateQuantity(productId, newQuantity);
+    
+    // If user is authenticated, also update in database
+    if (token) {
+      updateCartItem({
+        productId,
+        quantity: newQuantity,
+      });
+    }
+  };
 
   const handleCheckout = () => {
     toggleCart();
@@ -61,7 +89,7 @@ const Cart = () => {
                           variant="outline"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                          onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -70,7 +98,7 @@ const Cart = () => {
                           variant="outline"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
