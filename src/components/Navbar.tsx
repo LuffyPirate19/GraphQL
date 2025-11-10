@@ -36,12 +36,12 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <NavLink to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60" />
-            <span className="text-xl font-bold">ShopHub</span>
+          <NavLink to="/" className="flex items-center gap-2 group">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 group-hover:scale-110 transition-transform duration-300 shadow-md" />
+            <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">ShopHub</span>
           </NavLink>
           
           <div className="hidden md:flex items-center gap-1">
@@ -113,13 +113,13 @@ const Navbar = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="relative"
+            className="relative hover:bg-primary/10 transition-colors"
             onClick={toggleCart}
             aria-label={`Shopping cart with ${itemCount} items`}
           >
-            <ShoppingCart className="h-5 w-5" />
+            <ShoppingCart className="h-5 w-5 transition-transform hover:scale-110" />
             {itemCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 min-w-[20px] items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-lg ring-2 ring-background">
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 min-w-[20px] items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-lg ring-2 ring-background animate-pulse-glow">
                 {itemCount > 99 ? '99+' : itemCount}
               </span>
             )}

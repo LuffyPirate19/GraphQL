@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import ProductCard from "@/components/ProductCard";
+import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import { GET_PRODUCTS, GET_CATEGORIES } from "@/lib/graphql/queries";
 import { toast } from "sonner";
 
@@ -150,10 +151,12 @@ const Products = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="border-b border-border bg-muted/50">
-        <div className="container py-8">
-          <h1 className="mb-2 text-3xl font-bold">All Products</h1>
-          <p className="text-muted-foreground">Browse our complete collection</p>
+      <div className="border-b border-border bg-gradient-to-br from-muted/50 via-background to-muted/30">
+        <div className="container py-12">
+          <div className="animate-fade-in">
+            <h1 className="mb-2 text-4xl font-bold gradient-text">All Products</h1>
+            <p className="text-muted-foreground text-lg">Browse our complete collection</p>
+          </div>
         </div>
       </div>
 
@@ -216,19 +219,29 @@ const Products = () => {
 
           <div className="flex-1">
             {productsLoading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Loading products...</p>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div 
+                    key={index}
+                    className="animate-scale-in"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <ProductCardSkeleton />
+                  </div>
+                ))}
               </div>
             ) : (
               <>
-                <div className="mb-4 text-sm text-muted-foreground">
-                  Showing {products.length} of {totalCount} products
+                <div className="mb-6 text-sm text-muted-foreground animate-fade-in">
+                  Showing <span className="font-semibold text-foreground">{products.length}</span> of <span className="font-semibold text-foreground">{totalCount}</span> products
                 </div>
                 {products.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">No products found</p>
+                  <div className="text-center py-16 animate-fade-in">
+                    <div className="mb-4 text-6xl">🔍</div>
+                    <p className="text-lg font-semibold mb-2">No products found</p>
+                    <p className="text-muted-foreground mb-6">Try adjusting your filters</p>
                     {(selectedCategories.length > 0 || priceRange[0] > 0 || priceRange[1] < 10000 || debouncedSearchQuery) && (
-                      <Button onClick={handleClearFilters} className="mt-4">
+                      <Button onClick={handleClearFilters} className="hover-lift">
                         Clear Filters
                       </Button>
                     )}
@@ -236,35 +249,42 @@ const Products = () => {
                 ) : (
                   <>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                      {products.map((product: any) => (
-                        <ProductCard
+                      {products.map((product: any, index: number) => (
+                        <div
                           key={product.id}
-                          id={product.id}
-                          name={product.name}
-                          description={product.description}
-                          price={parseFloat(product.price)}
-                          image={product.image || product.images?.[0] || "/placeholder.svg"}
-                          category={product.category?.name}
-                          inStock={product.inStock}
-                          rating={product.rating || 0}
-                        />
+                          className="animate-scale-in"
+                          style={{ animationDelay: `${index * 0.05}s` }}
+                        >
+                          <ProductCard
+                            id={product.id}
+                            name={product.name}
+                            description={product.description}
+                            price={parseFloat(product.price)}
+                            image={product.image || product.images?.[0] || "/placeholder.svg"}
+                            category={product.category?.name}
+                            inStock={product.inStock}
+                            rating={product.rating || 0}
+                          />
+                        </div>
                       ))}
                     </div>
                     {products.length >= limit && (
-                      <div className="mt-8 flex justify-center gap-2">
+                      <div className="mt-12 flex justify-center gap-4 animate-fade-in">
                         <Button
                           variant="outline"
                           onClick={() => setOffset(Math.max(0, offset - limit))}
                           disabled={offset === 0}
+                          className="hover-lift min-w-[120px]"
                         >
-                          Previous
+                          ← Previous
                         </Button>
                         <Button
                           variant="outline"
                           onClick={() => setOffset(offset + limit)}
                           disabled={products.length < limit}
+                          className="hover-lift min-w-[120px]"
                         >
-                          Next
+                          Next →
                         </Button>
                       </div>
                     )}
