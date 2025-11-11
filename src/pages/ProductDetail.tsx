@@ -10,6 +10,7 @@ import { useCart } from "@/hooks/use-cart";
 import { GET_PRODUCT } from "@/lib/graphql/queries";
 import { ADD_TO_CART } from "@/lib/graphql/mutations";
 import { toast } from "sonner";
+import { getProductImages } from "@/utils/productImages";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -113,11 +114,15 @@ const ProductDetail = () => {
     );
   }
 
-  const images = product.images && product.images.length > 0 
-    ? product.images 
-    : product.image 
-    ? [product.image] 
-    : ["/placeholder.svg"];
+  const images = getProductImages(
+    product.name,
+    product.category?.name,
+    product.images && product.images.length > 0 
+      ? product.images 
+      : product.image 
+      ? [product.image] 
+      : undefined
+  );
 
   const reviews = product.reviews?.edges?.map((edge: any) => edge.node) || [];
 
@@ -141,6 +146,10 @@ const ProductDetail = () => {
                 src={images[selectedImageIndex]}
                 alt={product.name}
                 className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Fallback to placeholder if image fails to load
+                  (e.target as HTMLImageElement).src = "https://via.placeholder.com/800x800/4A90E2/FFFFFF?text=" + encodeURIComponent(product.name.substring(0, 15));
+                }}
               />
             </div>
             {images.length > 1 && (
@@ -150,7 +159,7 @@ const ProductDetail = () => {
                     key={idx}
                     className={`aspect-square cursor-pointer overflow-hidden rounded-lg border transition-all ${
                       selectedImageIndex === idx
-                        ? "border-primary"
+                        ? "border-primary ring-2 ring-primary/50"
                         : "border-border hover:border-primary/50"
                     }`}
                     onClick={() => setSelectedImageIndex(idx)}
@@ -158,7 +167,11 @@ const ProductDetail = () => {
                     <img
                       src={img}
                       alt={`${product.name} ${idx + 1}`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform hover:scale-110"
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x300/4A90E2/FFFFFF?text=" + encodeURIComponent(product.name.substring(0, 10));
+                      }}
                     />
                   </div>
                 ))}

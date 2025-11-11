@@ -13,6 +13,7 @@ import ProductCard from "@/components/ProductCard";
 import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import { GET_PRODUCTS, GET_CATEGORIES } from "@/lib/graphql/queries";
 import { toast } from "sonner";
+import { getProductImage } from "@/utils/productImages";
 
 const Products = () => {
   const [searchParams] = useSearchParams();
@@ -152,17 +153,17 @@ const Products = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="border-b border-border bg-gradient-to-br from-muted/50 via-background to-muted/30">
-        <div className="container py-12">
+      <div className="border-b border-border/50 bg-gradient-to-br from-primary/5 via-background to-muted/20 backdrop-blur-sm">
+        <div className="container py-16">
           <div className="animate-fade-in">
-            <h1 className="mb-2 text-4xl font-bold gradient-text">All Products</h1>
-            <p className="text-muted-foreground text-lg">Browse our complete collection</p>
+            <h1 className="mb-3 text-5xl font-extrabold text-gradient-animated">All Products</h1>
+            <p className="text-muted-foreground text-xl">Browse our complete collection</p>
           </div>
         </div>
       </div>
 
-      <div className="container py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="container py-10">
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
           <div className="flex flex-1 gap-2">
             <Input
               id="productSearch"
@@ -170,7 +171,7 @@ const Products = () => {
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-md"
+              className="max-w-md bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
             />
             <Sheet>
               <SheetTrigger asChild>
@@ -191,10 +192,10 @@ const Products = () => {
 
           <div className="flex gap-2">
             <Select value={sortBy} onValueChange={handleSortChange}>
-              <SelectTrigger id="sortBy" className="w-[180px]">
+              <SelectTrigger id="sortBy" className="w-[180px] bg-background/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card/95 backdrop-blur-xl border-border/50">
                 <SelectItem value="createdAt_desc">Newest</SelectItem>
                 <SelectItem value="price_asc">Price: Low to High</SelectItem>
                 <SelectItem value="price_desc">Price: High to Low</SelectItem>
@@ -207,10 +208,10 @@ const Products = () => {
 
         <div className="flex gap-8">
           <aside className="hidden w-64 flex-shrink-0 md:block">
-            <div className="sticky top-20 space-y-6 rounded-lg border border-border bg-card p-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">Filters</h2>
-                <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+            <div className="sticky top-24 space-y-6 rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                <h2 className="text-xl font-bold text-gradient-animated">Filters</h2>
+                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="hover:text-primary transition-colors">
                   Clear
                 </Button>
               </div>
@@ -233,8 +234,8 @@ const Products = () => {
               </div>
             ) : (
               <>
-                <div className="mb-6 text-sm text-muted-foreground animate-fade-in">
-                  Showing <span className="font-semibold text-foreground">{products.length}</span> of <span className="font-semibold text-foreground">{totalCount}</span> products
+                <div className="mb-8 text-base text-muted-foreground animate-fade-in bg-card/50 backdrop-blur-sm p-4 rounded-lg border border-border/50">
+                  Showing <span className="font-bold text-primary">{products.length}</span> of <span className="font-bold text-primary">{totalCount}</span> products
                 </div>
                 {products.length === 0 ? (
                   <div className="text-center py-16 animate-fade-in">
@@ -261,7 +262,11 @@ const Products = () => {
                             name={product.name}
                             description={product.description}
                             price={parseFloat(product.price)}
-                            image={product.image || product.images?.[0] || "/placeholder.svg"}
+                            image={getProductImage(
+                              product.name,
+                              product.category?.name,
+                              product.image || product.images?.[0]
+                            )}
                             category={product.category?.name}
                             inStock={product.inStock}
                             rating={product.rating || 0}

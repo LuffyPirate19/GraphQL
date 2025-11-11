@@ -11,6 +11,7 @@ import { useCart } from "@/hooks/use-cart";
 import { CREATE_ORDER } from "@/lib/graphql/mutations";
 import { GET_ME } from "@/lib/graphql/queries";
 import { toast } from "sonner";
+import { getProductImage } from "@/utils/productImages";
 
 const Checkout = () => {
   const { items, total, clearCart } = useCart();
@@ -307,7 +308,11 @@ const Checkout = () => {
                     {items.map((item) => (
                       <div key={item.id} className="flex gap-3">
                         <img
-                          src={item.image || "/placeholder.svg"}
+                          src={getProductImage(item.name, undefined, item.image)}
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/200x200/4A90E2/FFFFFF?text=" + encodeURIComponent(item.name.substring(0, 10));
+                          }}
                           alt={item.name}
                           className="h-16 w-16 rounded-md object-cover"
                         />

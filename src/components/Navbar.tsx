@@ -36,20 +36,22 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 shadow-sm">
+    <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-lg">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <NavLink to="/" className="flex items-center gap-2 group">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 group-hover:scale-110 transition-transform duration-300 shadow-md" />
-            <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">ShopHub</span>
+          <NavLink to="/" className="flex items-center gap-3 group">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg glow relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+            </div>
+            <span className="text-2xl font-extrabold text-gradient-animated group-hover:scale-105 transition-transform duration-300">ShopHub</span>
           </NavLink>
           
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-2">
             <NavLink to="/products">
-              <Button variant="ghost" size="sm">Products</Button>
+              <Button variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary transition-all font-medium">Products</Button>
             </NavLink>
             <NavLink to="/admin">
-              <Button variant="ghost" size="sm">Admin</Button>
+              <Button variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary transition-all font-medium">Admin</Button>
             </NavLink>
           </div>
         </div>
@@ -66,12 +68,12 @@ const Navbar = () => {
               }
             }}
           >
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground z-10" />
             <Input
               id="navbarSearch"
               name="search"
               placeholder="Search products..."
-              className="pl-10"
+              className="pl-12 h-11 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all"
             />
           </form>
         </div>

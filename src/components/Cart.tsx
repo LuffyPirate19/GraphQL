@@ -8,6 +8,7 @@ import { useMutation } from "@/hooks/use-graphql";
 import { UPDATE_CART_ITEM } from "@/lib/graphql/mutations";
 import { graphqlClient } from "@/lib/graphql-client";
 import { toast } from "sonner";
+import { getProductImage } from "@/utils/productImages";
 
 const Cart = () => {
   const { items, isOpen, toggleCart, removeItem, updateQuantity, total } = useCart();
@@ -65,9 +66,13 @@ const Cart = () => {
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-4 rounded-lg border border-border p-3">
                     <img 
-                      src={item.image || "/placeholder.svg"} 
+                      src={getProductImage(item.name, undefined, item.image)} 
                       alt={item.name}
                       className="h-20 w-20 rounded-md object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        (e.target as HTMLImageElement).src = "https://via.placeholder.com/200x200/4A90E2/FFFFFF?text=" + encodeURIComponent(item.name.substring(0, 10));
+                      }}
                     />
                     <div className="flex flex-1 flex-col gap-1">
                       <div className="flex items-start justify-between">
