@@ -2,7 +2,7 @@ const GRAPHQL_ENDPOINT = import.meta.env.VITE_GRAPHQL_ENDPOINT || 'http://localh
 
 interface GraphQLResponse<T = any> {
   data?: T;
-  errors?: Array<{ message: string; path?: string[] }>;
+  errors?: Array<{ message: string; path?: string[] }> | Record<string, { message: string; path?: string[] }>;
 }
 
 interface GraphQLRequest {
@@ -88,7 +88,16 @@ class GraphQLClient {
         const result: GraphQLResponse<T> = await response.json();
 
         if (result.errors) {
-          throw new Error(result.errors[0]?.message || 'GraphQL error');
+          // Handle errors array or errors object
+          let errorMessage = 'GraphQL error';
+          if (Array.isArray(result.errors) && result.errors.length > 0) {
+            errorMessage = result.errors[0]?.message || errorMessage;
+          } else if (result.errors && typeof result.errors === 'object') {
+            // Handle errors as object (e.g., {0: {message: "..."}})
+            const firstError = Object.values(result.errors)[0] as any;
+            errorMessage = firstError?.message || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
         // Cache successful queries (not mutations)
@@ -115,7 +124,17 @@ class GraphQLClient {
           throw new Error('Request timeout');
         }
         
-        throw new Error(error.message || 'Network error');
+        // Safely extract error message
+        let errorMessage = 'Network error';
+        if (error instanceof Error) {
+          errorMessage = error.message || errorMessage;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+          errorMessage = String(error.message) || errorMessage;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+        
+        throw new Error(errorMessage);
       } finally {
         // Remove from pending requests when done
         if (!isMutation) {

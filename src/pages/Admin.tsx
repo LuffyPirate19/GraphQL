@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@/hooks/use-graphql";
 import { Plus, Edit, Trash2, Package, CircleDollarSign, ShoppingBag, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,8 +25,10 @@ import {
   DELETE_CATEGORY,
 } from "@/lib/graphql/mutations";
 import { toast } from "sonner";
+import { graphqlClient } from "@/lib/graphql-client";
 
 const Admin = () => {
+  const navigate = useNavigate();
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -58,9 +61,20 @@ const Admin = () => {
   const { mutate: createProduct } = useMutation(CREATE_PRODUCT, {
     onCompleted: () => {
       toast.success("Product created successfully");
+      // Clear cache first to ensure fresh data on products page
+      graphqlClient.clearCache();
+      // Close dialog and reset form
       setIsProductDialogOpen(false);
+      setEditingProduct(null);
       resetProductForm();
       refetchProducts();
+      // Navigate to products page after dialog closes
+      // Use requestAnimationFrame to ensure dialog state update is processed
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          navigate("/products", { replace: true });
+        }, 200);
+      });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create product");
@@ -70,10 +84,14 @@ const Admin = () => {
   const { mutate: updateProduct } = useMutation(UPDATE_PRODUCT, {
     onCompleted: () => {
       toast.success("Product updated successfully");
-      setIsProductDialogOpen(false);
+      // Close dialog and reset form
       setEditingProduct(null);
       resetProductForm();
       refetchProducts();
+      // Ensure dialog closes properly
+      requestAnimationFrame(() => {
+        setIsProductDialogOpen(false);
+      });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to update product");
@@ -93,9 +111,12 @@ const Admin = () => {
   const { mutate: createCategory } = useMutation(CREATE_CATEGORY, {
     onCompleted: () => {
       toast.success("Category created successfully");
-      setIsCategoryDialogOpen(false);
       resetCategoryForm();
       refetchCategories();
+      // Ensure dialog closes properly
+      requestAnimationFrame(() => {
+        setIsCategoryDialogOpen(false);
+      });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create category");
@@ -105,10 +126,13 @@ const Admin = () => {
   const { mutate: updateCategory } = useMutation(UPDATE_CATEGORY, {
     onCompleted: () => {
       toast.success("Category updated successfully");
-      setIsCategoryDialogOpen(false);
       setEditingCategory(null);
       resetCategoryForm();
       refetchCategories();
+      // Ensure dialog closes properly
+      requestAnimationFrame(() => {
+        setIsCategoryDialogOpen(false);
+      });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to update category");
@@ -154,17 +178,40 @@ const Admin = () => {
   };
 
   const handleEditProduct = (product: any) => {
+    if (!product || !product.id) {
+      toast.error("Invalid product data");
+      return;
+    }
+    
     setEditingProduct(product);
+    // Safely convert price to string, handling various types
+    let priceString = "";
+    if (product.price !== undefined && product.price !== null) {
+      if (typeof product.price === 'string') {
+        priceString = product.price;
+      } else if (typeof product.price === 'number') {
+        priceString = product.price.toString();
+      } else if (typeof product.price === 'object' && product.price.toString) {
+        priceString = product.price.toString();
+      } else {
+        priceString = String(product.price);
+      }
+    }
+    
     setProductForm({
       name: product.name || "",
       description: product.description || "",
-      price: product.price?.toString() || "",
+      price: priceString,
       categoryId: product.categoryId || "",
       stockQuantity: product.stockQuantity?.toString() || "",
       inStock: product.inStock !== false,
       image: product.image || product.images?.[0] || "",
     });
-    setIsProductDialogOpen(true);
+    
+    // Open dialog after state updates
+    setTimeout(() => {
+      setIsProductDialogOpen(true);
+    }, 0);
   };
 
   const handleEditCategory = (category: any) => {
@@ -179,15 +226,44 @@ const Admin = () => {
 
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const input = {
+    const input: any = {
       name: productForm.name,
       description: productForm.description || undefined,
-      price: parseFloat(productForm.price),
       categoryId: productForm.categoryId,
-      stockQuantity: parseInt(productForm.stockQuantity) || 0,
       inStock: productForm.inStock,
-      image: productForm.image || undefined,
+      // Only include image if it's a non-empty string
+      image: productForm.image && productForm.image.trim() !== '' ? productForm.image.trim() : undefined,
     };
+
+    // Handle stockQuantity - always parse and include the value from the form
+    // The input field is required, so it should always have a value
+    const stockQuantityStr = productForm.stockQuantity?.toString().trim() || '0';
+    const stockValue = parseInt(stockQuantityStr, 10);
+    if (!isNaN(stockValue) && isFinite(stockValue) && stockValue >= 0) {
+      input.stockQuantity = stockValue;
+    } else {
+      // Fallback: if parsing fails, use 0
+      input.stockQuantity = 0;
+    }
+
+    // Only include price if it's a valid number
+    // Ensure price is always a number, not an object or string
+    if (productForm.price && productForm.price !== '') {
+      let priceValue: number;
+      if (typeof productForm.price === 'string') {
+        priceValue = parseFloat(productForm.price.trim());
+      } else if (typeof productForm.price === 'number') {
+        priceValue = productForm.price;
+      } else {
+        // If it's an object or other type, try to convert it
+        const priceStr = String(productForm.price);
+        priceValue = parseFloat(priceStr);
+      }
+      
+      if (!isNaN(priceValue) && isFinite(priceValue) && priceValue > 0) {
+        input.price = priceValue;
+      }
+    }
 
     if (editingProduct) {
       updateProduct({
@@ -195,6 +271,11 @@ const Admin = () => {
         input,
       });
     } else {
+      // Price is required for creating
+      if (!input.price) {
+        toast.error("Price is required");
+        return;
+      }
       createProduct({
         input,
       });
@@ -290,6 +371,9 @@ const Admin = () => {
                   <DialogTitle>
                     {editingCategory ? "Edit Category" : "Add New Category"}
                   </DialogTitle>
+                  <DialogDescription>
+                    {editingCategory ? "Update the category details below." : "Fill in the details to create a new category."}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCategorySubmit} className="space-y-4">
                   <div className="space-y-2">
@@ -371,6 +455,9 @@ const Admin = () => {
                   <DialogTitle>
                     {editingProduct ? "Edit Product" : "Add New Product"}
                   </DialogTitle>
+                  <DialogDescription>
+                    {editingProduct ? "Update the product details below." : "Fill in the details to create a new product."}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleProductSubmit} className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -435,10 +522,12 @@ const Admin = () => {
                         name="productPrice"
                         type="number"
                         step="0.01"
-                        value={productForm.price}
-                        onChange={(e) =>
-                          setProductForm({ ...productForm, price: e.target.value })
-                        }
+                        value={typeof productForm.price === 'string' ? productForm.price : String(productForm.price || '')}
+                        onChange={(e) => {
+                          // Ensure we always store a string value
+                          const value = e.target.value;
+                          setProductForm({ ...productForm, price: value });
+                        }}
                         placeholder="0.00"
                         required
                       />
@@ -558,6 +647,7 @@ const Admin = () => {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
+                              type="button"
                               variant="ghost"
                               size="icon"
                               onClick={() => handleEditProduct(product)}
@@ -565,6 +655,7 @@ const Admin = () => {
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
+                              type="button"
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDeleteProduct(product.id)}

@@ -77,10 +77,45 @@ export const getProductById = async (productId, projection = {}) => {
  * Create product
  */
 export const createProduct = async (input) => {
-  const product = new Product({
-    ...input,
-    price: new mongoose.Types.Decimal128(input.price.toString()),
-  });
+  // Safely process input to handle various types
+  const productData = { ...input };
+  
+  // Convert price to Decimal128
+  if (productData.price !== undefined && productData.price !== null) {
+    if (productData.price instanceof mongoose.Types.Decimal128) {
+      productData.price = productData.price;
+    } else {
+      productData.price = new mongoose.Types.Decimal128(productData.price.toString());
+    }
+  }
+  
+  // Ensure images is an array, not an object
+  if (productData.images !== undefined) {
+    if (Array.isArray(productData.images)) {
+      // Already an array, keep it
+      productData.images = productData.images.filter(img => img && typeof img === 'string');
+    } else if (productData.images && typeof productData.images === 'object') {
+      // Convert object to array
+      try {
+        // Try to convert using Object.values (safest for plain objects)
+        const imageValues = Object.values(productData.images).filter(img => img && typeof img === 'string');
+        productData.images = imageValues.length > 0 ? imageValues : [];
+      } catch (e) {
+        // If conversion fails, set to empty array
+        productData.images = [];
+      }
+    } else {
+      // Not an array or object, set to empty array
+      productData.images = [];
+    }
+  }
+  
+  // Ensure categoryId is an ObjectId
+  if (productData.categoryId && !(productData.categoryId instanceof mongoose.Types.ObjectId)) {
+    productData.categoryId = new mongoose.Types.ObjectId(productData.categoryId);
+  }
+  
+  const product = new Product(productData);
   
   await product.save();
   return product.toJSON();
@@ -94,7 +129,19 @@ export const updateProduct = async (productId, input) => {
   
   // Convert price to Decimal128 if provided
   if (updateData.price !== undefined) {
-    updateData.price = new mongoose.Types.Decimal128(updateData.price.toString());
+    // If already a Decimal128, use it directly
+    if (updateData.price instanceof mongoose.Types.Decimal128) {
+      // Already correct type, no conversion needed
+    } else if (typeof updateData.price === 'string' || typeof updateData.price === 'number') {
+      // Convert string or number to Decimal128
+      const priceValue = typeof updateData.price === 'string' ? parseFloat(updateData.price) : updateData.price;
+      if (isNaN(priceValue) || !isFinite(priceValue)) {
+        throw new ValidationError('Price must be a valid number');
+      }
+      updateData.price = new mongoose.Types.Decimal128(updateData.price.toString());
+    } else {
+      throw new ValidationError(`Invalid price type: expected string or number, got ${typeof updateData.price}`);
+    }
   }
   
   const product = await Product.findByIdAndUpdate(

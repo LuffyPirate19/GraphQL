@@ -1,5 +1,30 @@
 import { z } from 'zod';
 import { ValidationError } from './errors.js';
+import mongoose from 'mongoose';
+
+/**
+ * Custom Zod schema for Decimal/Decimal128 values
+ * Accepts number, string, or Decimal128 object
+ */
+const decimalSchema = z.union([
+  z.number().positive(),
+  z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && isFinite(num) && num > 0;
+  }, { message: 'Price must be a positive number' }),
+  z.instanceof(mongoose.Types.Decimal128).refine((val) => {
+    const num = parseFloat(val.toString());
+    return !isNaN(num) && isFinite(num) && num > 0;
+  }, { message: 'Price must be a positive number' }),
+  z.any().refine((val) => {
+    // Handle objects with toString method (like Decimal128 from JSON)
+    if (val && typeof val === 'object' && typeof val.toString === 'function') {
+      const num = parseFloat(val.toString());
+      return !isNaN(num) && isFinite(num) && num > 0;
+    }
+    return false;
+  }, { message: 'Price must be a positive number' }),
+]);
 
 /**
  * Validation schemas
@@ -7,9 +32,28 @@ import { ValidationError } from './errors.js';
 export const createProductSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
-  price: z.number().positive(),
-  images: z.array(z.string().url()).optional(),
-  image: z.string().url().optional(),
+  price: decimalSchema,
+  images: z.preprocess((val) => {
+    // Preprocess: convert object to array if needed
+    if (!val) return undefined;
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (val && typeof val === 'object') {
+      // Convert object to array
+      try {
+        const values = Object.values(val).filter(v => v && typeof v === 'string');
+        return values.length > 0 ? values : undefined;
+      } catch (e) {
+        return undefined;
+      }
+    }
+    return undefined;
+  }, z.array(z.string().url()).optional()),
+  image: z.union([
+    z.string().url(),
+    z.string().length(0), // Allow empty string
+  ]).optional(),
   categoryId: z.string().min(1),
   inStock: z.boolean().optional(),
   stockQuantity: z.number().int().min(0).optional(),
@@ -21,7 +65,10 @@ export const updateProductSchema = createProductSchema.partial();
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  image: z.string().url().optional(),
+  image: z.union([
+    z.string().url(),
+    z.string().length(0), // Allow empty string
+  ]).optional(),
 });
 
 export const updateCategorySchema = createCategorySchema.partial();
@@ -74,6 +121,7 @@ export const validate = (schema, data) => {
     throw error;
   }
 };
+
 
 
 

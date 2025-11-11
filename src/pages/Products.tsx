@@ -62,6 +62,7 @@ const Products = () => {
       filter: Object.keys(filter).length > 0 ? filter : undefined,
       sort: { sortBy },
     },
+    fetchPolicy: 'network-only', // Always fetch fresh data
   });
 
   const { data: categoriesData, loading: categoriesLoading } = useQuery(GET_CATEGORIES);

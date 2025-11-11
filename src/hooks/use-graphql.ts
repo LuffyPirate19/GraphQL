@@ -160,7 +160,16 @@ export function useMutation<T = any>(
         });
 
         if (result.errors) {
-          throw new Error(result.errors[0]?.message || 'Mutation failed');
+          // Handle errors array or errors object
+          let errorMessage = 'Mutation failed';
+          if (Array.isArray(result.errors) && result.errors.length > 0) {
+            errorMessage = result.errors[0]?.message || errorMessage;
+          } else if (result.errors && typeof result.errors === 'object') {
+            // Handle errors as object (e.g., {0: {message: "..."}})
+            const firstError = Object.values(result.errors)[0] as any;
+            errorMessage = firstError?.message || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
         if (result.data) {
